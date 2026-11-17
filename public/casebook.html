@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Casebook</title><link rel="icon" href="/grimm.ico?v=2" sizes="any">
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #d8d1bf; --ink: #15120e; --dim: #6a6456; --line: rgba(21,18,14,.3); --red: #a8441f; }
+  * { box-sizing: border-box; } body { margin: 0; background: var(--paper); color: var(--ink); font: 14px 'Special Elite', 'Courier New', monospace; padding: 28px 16px 60px; }
+  main { max-width: 1040px; margin: auto; } h1 { font: 44px Limelight, Georgia, serif; margin: 0; } h2 { font: 21px Limelight, Georgia, serif; margin: 30px 0 8px; }
+  #status { color: var(--dim); margin-top: 3px; } .totals { display: flex; flex-wrap: wrap; gap: 28px; margin-top: 18px; } .totals b { display: block; font: 30px Limelight, Georgia, serif; color: var(--red); } .totals span { color: var(--dim); font-size: 12px; }
+  .wrap { overflow-x: auto; } table { border-collapse: collapse; width: 100%; } th, td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px dotted var(--line); vertical-align: top; } th { font-weight: normal; color: var(--dim); font-size: 12px; } td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 40px; }
+  input { font: inherit; background: transparent; border: 1px solid var(--ink); padding: 5px 8px; width: min(340px, 100%); margin-bottom: 8px; color: inherit; } input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  button { font: inherit; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; text-decoration: underline; } a { color: var(--red); } .detail td { background: rgba(21,18,14,.05); padding: 10px; } .detail h3 { font: inherit; margin: 10px 0 4px; color: var(--dim); } .bad { color: var(--red); } .fine { color: var(--dim); font-size: 12px; margin-top: 26px; }
+</style></head><body><main>
+<h1>The Casebook</h1><div id="status" role="status">Pulling the files…</div>
+<div class="totals" id="totals"></div>
+<div class="two"><section><h2>By day</h2><div class="wrap" id="days"></div></section><section><h2>By project</h2><div class="wrap" id="projects"></div></section></div>
+<div class="two"><section><h2>Most marked-up files</h2><div class="wrap" id="files"></div></section><section><h2>Costliest prompts</h2><div class="wrap" id="prompts"></div></section></div>
+<h2>Every case</h2><input id="q" type="search" placeholder="Search title, project or prompt" aria-label="Search sessions"><div class="wrap" id="cases"></div>
+<p class="fine">Costs are estimates from token counts at list prices. Everything here is read from your own transcripts on this machine.</p>
+</main><script>
+const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const usd = n => '$' + n.toFixed(2), day = t => new Date(t).toLocaleDateString('en-CA'), dur = ms => { const m = Math.round(ms / 60000); return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h ' + m % 60 + 'm'; };
+const table = (head, rows) => `<table><thead><tr>${head.map(h => `<th class="${h[1] ? 'n' : ''}">${h[0]}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+const tr = (cells, head) => `<tr>${cells.map((c, i) => `<td class="${head[i][1] ? 'n' : ''}">${c}</td>`).join('')}</tr>`;
+let rows = [], open = null;
+const groupBy = (a, k) => { const m = new Map(); for (const x of a) { const v = k(x); m.get(v)?.push(x) ?? m.set(v, [x]); } return m; }, sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
+function render() {
+  $('#totals').innerHTML = [[usd(sum(rows, r => r.cost)), 'estimated spend'], [rows.length, 'cases'], [sum(rows, r => r.tools).toLocaleString(), 'leads followed'], [sum(rows, r => r.edits).toLocaleString(), 'files marked up'], [dur(sum(rows, r => r.active)), 'time on the job']].map(([b, s]) => `<div><b>${esc(b)}</b><span>${s}</span></div>`).join('');
+  const H1 = [['Day'], ['Cases', 1], ['Tools', 1], ['Spend', 1]];
+  $('#days').innerHTML = table(H1, [...groupBy(rows, r => day(r.start))].sort((a, b) => a[0] < b[0] ? 1 : -1).slice(0, 14).map(([d, l]) => tr([d, l.length, sum(l, r => r.tools), usd(sum(l, r => r.cost))], H1)));
+  const H2 = [['Project'], ['Cases', 1], ['Edits', 1], ['Spend', 1]];
+  $('#projects').innerHTML = table(H2, [...groupBy(rows, r => r.project || '?')].sort((a, b) => sum(b[1], r => r.cost) - sum(a[1], r => r.cost)).slice(0, 14).map(([p, l]) => tr([esc(p), l.length, sum(l, r => r.edits), usd(sum(l, r => r.cost))], H2)));
+  const f = new Map(); for (const r of rows) for (const [n, s] of Object.entries(r.files)) { const k = (r.project || '?') + ' / ' + n, v = f.get(k) || { r: 0, e: 0 }; v.r += s.r; v.e += s.e; f.set(k, v); }
+  const H3 = [['File'], ['Edits', 1], ['Reads', 1]];
+  $('#files').innerHTML = table(H3, [...f].sort((a, b) => b[1].e - a[1].e).slice(0, 12).map(([n, s]) => tr([esc(n), s.e, s.r], H3)));
+  const H4 = [['Prompt'], ['Tools', 1], ['Cost', 1]];
+  $('#prompts').innerHTML = table(H4, rows.flatMap(r => r.turns).sort((a, b) => b.cost - a.cost).slice(0, 10).map(t => tr([esc(t.text.slice(0, 80)), t.tools, usd(t.cost)], H4)));
+  const q = $('#q').value.toLowerCase(), H5 = [['When'], ['Case'], ['Project'], ['Time', 1], ['Tools', 1], ['Dead ends', 1], ['Cost', 1]];
+  const shown = rows.filter(r => !q || [r.title, r.project, ...r.turns.map(t => t.text)].join(' ').toLowerCase().includes(q)).slice(0, 150);
+  $('#cases').innerHTML = table(H5, shown.flatMap(r => {
+    const main = tr([new Date(r.start).toLocaleDateString('en-CA'), `<button type="button" data-id="${esc(r.id)}" aria-expanded="${open === r.id}">${esc(r.title || r.id.slice(0, 8))}</button>`, esc(r.project), dur(r.active), r.tools, r.fails ? `<span class="bad">${r.fails}</span>` : 0, usd(r.cost)], H5);
+    if (open !== r.id) return [main];
+    const id = encodeURIComponent(r.id), H6 = [['Prompt'], ['Time', 1], ['Tools', 1], ['Edits', 1], ['Dead ends', 1], ['Cost', 1]];
+    return [main, `<tr class="detail"><td colspan="7"><a href="/grimm?replay=${id}" target="_blank" rel="noopener">Replay at Grimm's</a> &nbsp; <a href="/?replay=${id}" target="_blank" rel="noopener">Replay at the Ironworks</a><h3>Receipt, prompt by prompt</h3>${table(H6, r.turns.map(t => tr([esc(t.text), dur(t.dur), t.tools, t.edits, t.fails, usd(t.cost)], H6)))}<h3>Tools used</h3>${esc(Object.entries(r.cats).sort((a, b) => b[1] - a[1]).map(([c, n]) => `${c} ${n}`).join(' · '))}${r.agents ? ` · ${r.agents} subagents` : ''}</td></tr>`];
+  }));
+}
+$('#q').addEventListener('input', render);
+$('#cases').addEventListener('click', e => { const b = e.target.closest('button[data-id]'); if (b) { open = open === b.dataset.id ? null : b.dataset.id; render(); } });
+async function poll() { try { const d = await (await fetch('/api/sessions')).json(); rows = d.rows; $('#status').textContent = d.done < d.total ? `Pulling the files… ${d.done} of ${d.total}` : `${rows.length} cases on file`; render(); if (d.done < d.total) setTimeout(poll, 1200); } catch { $('#status').textContent = 'The server is not answering.'; } }
+poll();
+</script></body></html>

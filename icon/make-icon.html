@@ -1,0 +1,83 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Factory icon</title>
+<style>body{margin:0;background:#222;display:flex;gap:24px;padding:24px;align-items:end;flex-wrap:wrap}img{image-rendering:pixelated}</style>
+</head><body>
+<script>
+// Cube robot head on a dark tile. 48px and up: 3/4 view with top and side faces, glow and a hazard stripe.
+// 32px and down: flat front view with chunky eyes, so it still reads in the taskbar and browser tab.
+function svg(size) {
+  const iso = size >= 48, big = size >= 128, tiny = size <= 16;
+  const glow = (x, y, w, h, c) => big ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}" opacity=".4" filter="url(#blur)"/>` : '';
+  const head = iso ? `
+    <rect x="58" y="214" width="124" height="12" fill="#000" opacity=".35"/>
+    <polygon points="48,98 172,98 204,72 80,72" fill="#fffaf3"/>
+    <polygon points="172,98 204,72 204,186 172,212" fill="#c4bcae"/>
+    <rect x="48" y="98" width="124" height="114" fill="#f3ede4"/>
+    <rect x="34" y="140" width="14" height="32" fill="#ff8a5c"/>
+    <rect x="135" y="40" width="10" height="46" fill="#2a2e40"/>
+    ${glow(116, 8, 48, 48, '#ff8a5c')}
+    <polygon points="126,26 152,26 162,16 136,16" fill="#ffc2a6"/>
+    <polygon points="152,26 162,16 162,42 152,52" fill="#c95a36"/>
+    <rect x="126" y="26" width="26" height="26" fill="#ff8a5c"/>
+    <rect x="62" y="122" width="96" height="48" rx="6" fill="#141827"/>
+    ${glow(68, 126, 84, 40, '#5ef2ff')}
+    <rect x="76" y="134" width="24" height="24" fill="#5ef2ff"/>
+    <rect x="120" y="134" width="24" height="24" fill="#5ef2ff"/>
+    <rect x="80" y="186" width="12" height="10" fill="#c4bcae"/>
+    <rect x="104" y="186" width="12" height="10" fill="#c4bcae"/>
+    <rect x="128" y="186" width="12" height="10" fill="#c4bcae"/>` : `
+    <rect x="114" y="${tiny ? 40 : 44}" width="28" height="32" fill="#2a2e40"/>
+    <rect x="100" y="${tiny ? 6 : 12}" width="56" height="${tiny ? 46 : 42}" fill="#ff8a5c"/>
+    <rect x="28" y="72" width="200" height="164" rx="${tiny ? 8 : 14}" fill="#f3ede4"/>
+    <rect x="48" y="${tiny ? 104 : 110}" width="160" height="${tiny ? 92 : 76}" rx="6" fill="#141827"/>
+    <rect x="${tiny ? 64 : 70}" y="${tiny ? 116 : 128}" width="${tiny ? 52 : 40}" height="${tiny ? 68 : 40}" fill="#5ef2ff"/>
+    <rect x="${tiny ? 140 : 146}" y="${tiny ? 116 : 128}" width="${tiny ? 52 : 40}" height="${tiny ? 68 : 40}" fill="#5ef2ff"/>`;
+  const stripes = Array.from({ length: 10 }, (_, i) =>
+    `<polygon points="${i * 32 - 16},256 ${i * 32},256 ${i * 32 + 30},228 ${i * 32 + 14},228" fill="#14161f"/>`).join('');
+  const stripe = iso ? `<g clip-path="url(#tile)"><rect x="0" y="228" width="256" height="28" fill="#f2c230"/>${stripes}</g>` : '';
+  const rx = iso ? 48 : 36;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3458"/><stop offset="1" stop-color="#0d1020"/></linearGradient>
+    <clipPath id="tile"><rect width="256" height="256" rx="${rx}"/></clipPath>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+  </defs>
+  <rect width="256" height="256" rx="${rx}" fill="url(#bg)"/>
+  ${big ? '<rect x="2" y="2" width="252" height="252" rx="46" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="3"/>' : ''}
+  ${stripe}
+  ${head}
+</svg>`;
+}
+
+const SIZES = [16, 24, 32, 48, 64, 128, 256];
+async function png(size) {
+  const img = new Image();
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg(size));
+  await img.decode();
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  c.getContext('2d').drawImage(img, 0, 0, size, size);
+  document.body.appendChild(Object.assign(new Image(), { src: c.toDataURL(), width: Math.max(size, 64) * 2 }));
+  const b64 = c.toDataURL('image/png').split(',')[1];
+  return Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
+}
+// ICO container with PNG-compressed entries (supported since Windows Vista).
+window.build = async () => {
+  const pngs = [];
+  for (const s of SIZES) pngs.push(await png(s));
+  const head = 6 + 16 * SIZES.length;
+  const total = head + pngs.reduce((a, p) => a + p.length, 0);
+  const buf = new Uint8Array(total), dv = new DataView(buf.buffer);
+  dv.setUint16(0, 0, true); dv.setUint16(2, 1, true); dv.setUint16(4, SIZES.length, true);
+  let off = head;
+  SIZES.forEach((s, i) => {
+    const e = 6 + 16 * i;
+    buf[e] = s >= 256 ? 0 : s; buf[e + 1] = s >= 256 ? 0 : s;
+    dv.setUint16(e + 4, 1, true); dv.setUint16(e + 6, 32, true);
+    dv.setUint32(e + 8, pngs[i].length, true); dv.setUint32(e + 12, off, true);
+    buf.set(pngs[i], off); off += pngs[i].length;
+  });
+  let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(s);
+};
+</script>
+</body></html>

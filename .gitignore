@@ -1,0 +1,19 @@
+# Old hand-made snapshots; git history replaces these
+*.before-*.html
+*.before-*.js
+*.pre-*.js
+public/grimm.models-attempt.html
+
+# Raw source packs (Quaternius, CC0, ~190 MB). The models the pages use are in public/models.
+assets/
+
+# Tool and OS noise
+.playwright-cli/
+.claude/settings.local.json
+node_modules/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Local working notes
+NEXT.md
