@@ -1,10 +1,10 @@
 # Code Visualizers
 
-**Watch Claude Code work.** Every file it reads, every edit, every test run and every subagent it spawns becomes something you can see: a robot pulling drives in a neon server hall, a detective working a case in 1931, a cook in a toy kitchen.
+**Watch Claude Code work.** Every file it reads, every edit, every test run and every subagent it spawns becomes something you can see: a robot pulling drives in a neon server hall, a detective working a case in 1931, a cook in a pixel-art kitchen.
 
 ![Claude Ironworks: a neon server hall where each folder in your project is a rack of drives](docs/screenshots/ironworks-orbit.jpg)
 
-A small Node server tails your Claude Code session transcripts as they are written and streams each event to a three.js scene in your browser. It has no dependencies and makes no model calls. It runs next to your terminal and shows what the agent is doing, so you don't have to scroll the log.
+A small Node server tails your Claude Code session transcripts as they are written and streams each event to a scene in your browser (three.js for Ironworks and Grimm, a pixel-art canvas for the Kitchen). It has no dependencies and makes no model calls. It runs next to your terminal and shows what the agent is doing, so you don't have to scroll the log.
 
 ## Three worlds, one session
 
@@ -22,11 +22,11 @@ The same events in film noir. Your prompt becomes the case title, reads are file
 
 ![Claude Grimm: a black-and-white detective office with an evidence wall, case notes and an expense sheet](docs/screenshots/grimm.jpg)
 
-### Claude's Kitchen: a clay-toy kitchen
+### Claude's Kitchen: a pixel-art kitchen
 
-The cosy version. Your prompt becomes the order ticket. Cooks fetch files from the pantry, chop them at the board, and send shell commands to the stove. A failed run is marked "Burnt". Your plan limits show as gas gauges.
+The cosy version, drawn as a side-on pixel-art cutaway. Your prompt prints as an order ticket at the pass. Cooks fetch files from the pantry, chop them at the prep islands, toss shell commands in a pan on the stove, and take web results in at the delivery hatch. A failed run goes up in dark smoke and is marked "Burnt". Your plan limits show as gas gauges, and the clock on the wall keeps real time.
 
-![Claude's Kitchen: a warm toy kitchen with cooks, a ticket rail and gas-gauge usage meters](docs/screenshots/kitchen.jpg)
+![Claude's Kitchen: a pixel-art kitchen cutaway with a pantry, stove line, prep islands and the pass, cooks at work, and the order ticket and gas-gauge cards](docs/screenshots/kitchen.png)
 
 ## What's on screen
 
@@ -34,7 +34,7 @@ The cosy version. Your prompt becomes the order ticket. Cooks fetch files from t
 - **Session stats:** output tokens, tool calls, files touched, edits and an estimated cost from list prices.
 - **Plan limits:** your 5-hour and weekly usage, with the time each one resets.
 - **"Waiting for you":** a cue when Claude has stopped and needs your input or approval (see [Permission prompts](#permission-prompts)).
-- **Cameras:** `1` orbit, `2` follow, `3` CCTV, `4` free.
+- **Cameras** (Ironworks and Grimm): `1` orbit, `2` follow, `3` CCTV, `4` free.
 - **The Casebook** (`/casebook`): your recent sessions across all projects, with time, cost, tools, edits and failures per prompt.
 - **Session picker and replay:** follow any session, not only the newest, or replay one from the start.
 
@@ -94,7 +94,7 @@ Transcripts don't record when Claude Code stops to ask for permission. To show t
 ## How it works
 
 ```
-~/.claude/projects/*.jsonl  ──tail──▶  server.js  ──SSE /events──▶  public/*.html (three.js r160)
+~/.claude/projects/*.jsonl  ──tail──▶  server.js  ──SSE /events──▶  public/*.html (three.js r160 / 2D canvas)
 ```
 
 `server.js` parses each new transcript line into small events (`prompt`, `tool`, `result`, `say`, `think`, `cost` and so on) and pushes them over server-sent events. Each page maps those events onto its own world. Every page is a single self-contained HTML file, so you can open one and read it from top to bottom.
